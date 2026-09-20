@@ -1,0 +1,264 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { PRODUCT } from '../../lib/product'
+import { checkAndConsumeQuota, defaultModel, resolvePlan } from '../../lib/aiGateway'
+import { getByokKey } from '../../lib/byokStore'
+import { createRun, nextStep, StepId, RunState, STEP_LABELS } from '../../lib/pipeline'
+import { loadRun, saveRun } from '../../lib/pipeline-store'
+import { writeAudit } from '../../lib/auditLog'
+import { runAllRules, RULESET_VERSION } from '../../lib/rules/cold-outreach'
+import { validateStepOutput } from '../../lib/schema'
+
+/** English per-step instructions appended to the system prompt. */
+const STEP_INSTRUCTIONS: Record<StepId, string> = {
+  brief:
+    'Step 1 — Brief: Analyze the recipient and context. Summarize the prospect’s likely pain point and the single best reason they would care. Output a 2-4 sentence brief.',
+  draft:
+    'Step 2 — Draft: Write the cold email from the brief. Keep it under 150 words, include one clear "Subject:" line, use a personalized greeting (never "Hi there"), lead with value instead of asking for a meeting, and follow CAN-SPAM (include an unsubscribe line).',
+  compliance_qa:
+    'Step 3 — Compliance QA: Review the draft against CAN-SPAM and deliverability rules. List any issues (missing unsubscribe, deceptive subject, spam triggers, generic greeting, excessive length). Output a short QA report.',
+  human_confirm:
+    'Step 4 — Human confirm: Present the final email for the user to approve. Do not change the content.',
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  let inputs: Record<string, string> = {}
+  let runId: string = ''
+  let currentStep: StepId = 'brief'
+
+  try {
+    const body = (req.body || {}) as {
+      inputs?: Record<string, string>
+      useMock?: boolean
+      runId?: string
+      step?: StepId
+      action?: 'advance' | 'confirm'
+      // plan / useByok from client are IGNORED (trust boundary — see aiGateway.resolvePlan)
+      useByok?: boolean
+      plan?: 'free' | 'pro' | 'enterprise'
+    }
+    inputs = body.inputs || {}
+    const useMock = !!body.useMock
+    runId = body.runId || ''
+    currentStep = body.step || 'brief'
+    const action = body.action || 'advance'
+
+    // Trust boundary: plan is NEVER taken from client body.
+    const plan = resolvePlan(req)
+    const slug = String((PRODUCT as any).slug || 'product')
+
+    // BYOK skips platform Fair Use ONLY when server plan is enterprise AND key stored.
+    // Naked body.useByok=true must NOT skip Fair Use.
+    const wantByok = plan === 'enterprise'
+    const byokKey = wantByok ? getByokKey(slug) : null
+    const usingByok = !!byokKey
+    const platformKey = process.env.OPENAI_API_KEY || ''
+    const apiKey = byokKey || platformKey
+    const hasKey = !!apiKey
+
+    const model = process.env.OPENAI_MODEL || defaultModel()
+
+    // ---- DEMO (explicit) — emits BOTH demo:true and mock:true ----
+    if (useMock) {
+      let result: string
+      if (typeof (PRODUCT as any).mock === 'function') {
+        result = String((PRODUCT as any).mock(inputs))
+      } else {
+        result = `${(PRODUCT as any).name || 'Product'} DEMO\n\n` + Object.entries(inputs).map(([k, v]) => `${k}: ${v}`).join('\n')
+      }
+      if (!runId) {
+        const run = createRun(inputs)
+        runId = run.runId
+        saveRun(run)
+      }
+      writeAudit({
+        timestamp: new Date().toISOString(),
+        runId,
+        step: currentStep,
+        action: 'mock',
+        model: 'demo',
+        source: 'rule-based',
+      })
+      return res.status(200).json({
+        result,
+        runId,
+        demo: true,
+        mock: true,
+        step: currentStep,
+        rulesetVersion: RULESET_VERSION,
+      })
+    }
+
+    // ---- NO KEY (non-demo) — explicit error, never silent mock ----
+    if (!hasKey) {
+      return res.status(503).json({
+        error: 'AI is not configured. Add OPENAI_API_KEY or enable Demo mode.',
+        code: 'AI_NOT_CONFIGURED',
+        demo: false,
+        degraded: true,
+        configured: false,
+      })
+    }
+
+    // ---- QUOTA GATE — uses real QuotaCheck.ok boolean ----
+    const quotaCheck = checkAndConsumeQuota(slug, plan)
+    if (!quotaCheck.ok) {
+      writeAudit({
+        timestamp: new Date().toISOString(),
+        runId,
+        step: currentStep,
+        action: 'quota_check',
+        quota: {
+          plan: quotaCheck.plan,
+          daily: quotaCheck.daily,
+          monthly: quotaCheck.monthly,
+          limit: quotaCheck.dailyLimit,
+        },
+        source: 'rule-based',
+      })
+      return res.status(429).json({
+        error: 'Fair use limit reached. Upgrade or wait for reset.',
+        code: 'QUOTA_EXCEEDED',
+        demo: false,
+        degraded: true,
+      })
+    }
+
+    // ---- PIPELINE STATE ----
+    let run: RunState
+    if (runId) {
+      const existing = loadRun(runId)
+      if (!existing) {
+        return res.status(404).json({ error: 'Run not found', code: 'RUN_NOT_FOUND' })
+      }
+      run = existing
+    } else {
+      run = createRun(inputs)
+      runId = run.runId
+      saveRun(run)
+    }
+
+    if (currentStep !== run.step) {
+      return res.status(400).json({
+        error: 'Invalid step transition: expected ' + run.step + ', received ' + currentStep,
+        code: 'INVALID_STEP',
+      })
+    }
+
+    writeAudit({
+      timestamp: new Date().toISOString(),
+      runId,
+      step: currentStep,
+      action: 'start',
+      model,
+      source: 'model-assisted',
+    })
+
+    const inputText = PRODUCT.inputs
+      .map((f) => `${f.label}: ${inputs[f.key] || '(not provided)'}`)
+      .join('\n')
+
+    const r = await fetch(`${process.env.OPENAI_BASE_URL || 'https://integrate.api.nvidia.com/v1'}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: PRODUCT.systemPrompt + '\n\n' + STEP_INSTRUCTIONS[currentStep] },
+          { role: 'user', content: inputText },
+        ],
+        temperature: 0.7,
+      }),
+    })
+
+    if (!r.ok) {
+      const t = await r.text()
+      throw new Error('AI request failed: ' + t.slice(0, 160))
+    }
+    const data = await r.json()
+    const text = data.choices?.[0]?.message?.content || ''
+    if (!text.trim()) throw new Error('Empty AI response')
+
+    // Schema / output validation — explicit failure, never silent mock.
+    const validation = validateStepOutput(currentStep, text)
+    if (!validation.ok) {
+      const failedRun: RunState = { ...run, status: 'failed', updatedAt: new Date().toISOString() }
+      saveRun(failedRun)
+      writeAudit({
+        timestamp: new Date().toISOString(),
+        runId,
+        step: currentStep,
+        action: 'error',
+        error: validation.error,
+        source: 'model-assisted',
+      })
+      return res.status(400).json({
+        error: validation.error,
+        code: 'INVALID_OUTPUT',
+        runId,
+        demo: false,
+        mock: false,
+      })
+    }
+
+    // Deterministic vertical rule check (L3) on the LLM output.
+    const ruleResults = runAllRules(text, inputs)
+
+    // Advance state machine and store artifact + rule results.
+    let nextRun: RunState
+    try {
+      nextRun = nextStep(run, action)
+      nextRun.artifacts[currentStep] = text
+      nextRun.artifacts[currentStep + '_rules'] = ruleResults
+      saveRun(nextRun)
+    } catch (e: any) {
+      nextRun = { ...run, status: 'done' as const }
+      saveRun(nextRun)
+    }
+
+    writeAudit({
+      timestamp: new Date().toISOString(),
+      runId,
+      step: currentStep,
+      action: 'complete',
+      model,
+      source: 'model-assisted',
+    })
+
+    return res.status(200).json({
+      result: text,
+      runId,
+      step: nextRun.step,
+      status: nextRun.status,
+      demo: false,
+      mock: false,
+      model,
+      usingByok,
+      rulesetVersion: RULESET_VERSION,
+      ruleResults,
+      stepLabel: STEP_LABELS[nextRun.step],
+      source: 'model-assisted',
+    })
+  } catch (e: any) {
+    writeAudit({
+      timestamp: new Date().toISOString(),
+      runId,
+      step: currentStep,
+      action: 'error',
+      error: e?.message || 'unknown error',
+      source: 'model-assisted',
+    })
+    return res.status(502).json({
+      error: 'AI service call failed: ' + (e?.message || 'unknown error'),
+      code: 'AI_UPSTREAM_FAILED',
+      degraded: true,
+      demo: false,
+      mock: false,
+      runId,
+    })
+  }
+}

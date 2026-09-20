@@ -1,0 +1,43 @@
+# ColdMail AI - llms.txt
+
+> LLM-readable manifest (https://llmstxt.org). Features-only; no fabricated traffic or unverified payment claims.
+
+## Name & positioning
+- Product name: ColdMail AI
+- One-line value: ColdMail AI writes research-backed, personalized cold emails for founders and freelancers reaching prospects on LinkedIn, X, or email — with tone presets and follow-up variants, plus CAN-SPAM hygiene reminders.
+- Domain: https://coldmail-ai.lxsaihub.com/
+- Language: English (en)
+
+## Domain context (verified primary sources)
+- FTC — CAN-SPAM Act: A Compliance Guide for Business: https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+- FTC — CAN-SPAM FAQ: https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business
+
+## FAQ
+Q1. What is ColdMail AI?
+A1. A tool that generates research-backed, personalized cold emails for outbound.
+Q2. How is it personalized?
+A2. It uses prospect context instead of a generic blast template.
+Q3. What tones are available?
+A3. Founder, formal, and casual tones, with subject-line variants.
+Q4. Does it help with follow-ups?
+A4. Yes — reply and follow-up generators keep the thread consistent.
+Q5. Which channels does it cover?
+A5. LinkedIn, X, and email with channel-appropriate phrasing.
+Q6. Who should use it?
+A6. Founders and freelancers who want reply-worthy emails without writing every variant by hand.
+
+## Key pages
+- Home: https://coldmail-ai.lxsaihub.com/
+- Blog index: https://coldmail-ai.lxsaihub.com/blog
+- https://coldmail-ai.lxsaihub.com/blog/personalized-cold-email-without-spam-triggers-2026.html
+- https://coldmail-ai.lxsaihub.com/blog/subject-line-variants-and-followups-2026.html
+- This manifest: https://coldmail-ai.lxsaihub.com/llms.txt
+
+## Pricing
+- Plans may appear on the product site. GEO assets omit unverified checkout product IDs.
+
+## Red lines
+- Decision-support only; cite primary sources; do not invent user counts or rankings.
+
+## Contact
+- Open the app: https://coldmail-ai.lxsaihub.com/

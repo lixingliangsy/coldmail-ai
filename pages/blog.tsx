@@ -1,0 +1,264 @@
+import Head from 'next/head'
+
+import { buildFaqJsonLd, buildHowToJsonLd } from '../lib/schema'
+
+const NAME = 'ColdMail AI'
+const SLUG = 'coldmail-ai'
+const SITE = `https://${SLUG}.lxsaihub.com`
+
+const faqs = [
+  {
+    "question": "What is ColdMail AI?",
+    "answer": "ColdMail AI generates research-backed, personalized cold emails for outbound outreach. It writes drafts for founders and freelancers reaching prospects on LinkedIn, X, or email. The goal is reply-worthy messages without writing every variant by hand."
+  },
+  {
+    "question": "How does ColdMail AI personalize emails?",
+    "answer": "It builds each message from the prospect context you provide — the recipient, company, and why you are reaching out — rather than a generic blast template. The copy references the specific situation so it reads like a one-to-one note. You still review and confirm before sending."
+  },
+  {
+    "question": "What tones and channels does it support?",
+    "answer": "Tone presets are Founder, Formal, and Casual, each with subject-line variants to test. Channels include email, LinkedIn DM, and X/Twitter DM, with phrasing adjusted to fit each surface. Pick both when you brief the workflow."
+  },
+  {
+    "question": "Does it help with follow-ups?",
+    "answer": "Yes — reply and follow-up generators keep the thread consistent with the original message. You can extend a live conversation without re-explaining context each time. It is meant to maintain momentum, not to spam."
+  },
+  {
+    "question": "Is the output compliant with email rules?",
+    "answer": "Drafts follow CAN-SPAM hygiene: a clear unsubscribe path and no deceptive subject lines. The workflow runs a compliance QA step before you confirm the message. Final responsibility for lawful sending still sits with the sender."
+  },
+  {
+    "question": "Who should use ColdMail AI?",
+    "answer": "It is aimed at founders and freelancers who want reply-worthy cold emails without writing every variant themselves. Small teams running outbound on LinkedIn, X, or email get the most leverage. It supports the writer, rather than replacing human judgment on tone and timing."
+  }
+] as { question: string; answer: string }[]
+
+const howToBlocks = [
+  {
+    "name": "How to write a cold email with ColdMail AI",
+    "steps": [
+      {
+        "name": "Enter the recipient and company",
+        "text": "Add who you are reaching out to and any context like industry, size, or recent news that makes the note specific."
+      },
+      {
+        "name": "Describe why you are reaching out",
+        "text": "Write the offer or reason for contact in a sentence or two so the draft can lead with value, not a meeting request."
+      },
+      {
+        "name": "Pick a tone and channel",
+        "text": "Choose Founder, Formal, or Casual, and select email, LinkedIn DM, or X DM so phrasing fits the surface."
+      },
+      {
+        "name": "Run the 4-step workflow",
+        "text": "The pipeline moves brief → draft → compliance QA → confirm, surfacing subject-line variants you can swap."
+      },
+      {
+        "name": "Send and follow up",
+        "text": "Send the confirmed draft, then use the follow-up generator to keep the thread consistent and on-topic."
+      }
+    ]
+  }
+] as { name: string; steps: { name: string; text: string }[] }[]
+
+const posts = [
+  {
+    slug: 'what-is-coldmail-ai',
+    title: 'What is ColdMail AI?',
+    type: 'Definitional · FAQPage',
+    query: 'what is ColdMail AI',
+    datePublished: '2026-05-12',
+    dateModified: '2026-08-20',
+    body: 'ColdMail AI generates research-backed, personalized cold emails for founders and freelancers reaching prospects on LinkedIn, X, or email.',
+  },
+  {
+    slug: 'how-coldmail-ai-personalizes',
+    title: 'How does ColdMail AI personalize emails?',
+    type: 'How-to',
+    query: 'how does ColdMail AI personalize emails',
+    datePublished: '2026-05-12',
+    dateModified: '2026-08-20',
+    body: 'It builds each message from the prospect context you provide — recipient, company, and reason for outreach — instead of a generic blast template, so the note reads like a one-to-one message.',
+  },
+  {
+    slug: 'coldmail-ai-tones-channels',
+    title: 'What tones and channels does ColdMail AI support?',
+    type: 'How-to',
+    query: 'ColdMail AI tones and channels',
+    datePublished: '2026-05-19',
+    dateModified: '2026-08-20',
+    body: 'Tone presets are Founder, Formal, and Casual with subject-line variants; channels include email, LinkedIn DM, and X/Twitter DM with surface-appropriate phrasing.',
+  },
+  {
+    slug: 'coldmail-ai-follow-ups',
+    title: 'Does ColdMail AI help with follow-ups?',
+    type: 'How-to',
+    query: 'does ColdMail AI handle follow-ups',
+    datePublished: '2026-05-19',
+    dateModified: '2026-08-20',
+    body: 'Yes — reply and follow-up generators keep the thread consistent with the original message, helping you maintain momentum without re-explaining context.',
+  },
+  {
+    slug: 'coldmail-ai-compliance',
+    title: 'Is the ColdMail AI output compliant with email rules?',
+    type: 'Definitional',
+    query: 'is ColdMail AI CAN-SPAM compliant',
+    datePublished: '2026-06-02',
+    dateModified: '2026-08-20',
+    body: 'Drafts follow CAN-SPAM hygiene with a clear unsubscribe path and no deceptive subject lines, and a compliance QA step runs before you confirm the message.',
+  },
+  {
+    slug: 'who-should-use-coldmail-ai',
+    title: 'Who should use ColdMail AI?',
+    type: 'Definitional',
+    query: 'who should use ColdMail AI',
+    datePublished: '2026-06-02',
+    dateModified: '2026-08-20',
+    body: 'It is aimed at founders and freelancers who want reply-worthy cold emails without writing every variant by hand, especially small teams running outbound on LinkedIn, X, or email.',
+  },
+]
+
+const cards = [
+  {
+    title: 'What is ColdMail AI?',
+    text: 'A tool that generates research-backed, personalized cold emails for outbound outreach on LinkedIn, X, and email — without writing every variant by hand.',
+  },
+  {
+    title: 'How it personalizes',
+    text: 'It builds each message from the prospect context you provide, not a generic blast template, so the note reads like a genuine one-to-one message.',
+  },
+  {
+    title: 'What is Tones and channels?',
+    text: 'Founder, Formal, and Casual tones with subject-line variants, across email, LinkedIn DM, and X DM with surface-appropriate phrasing.',
+  },
+  {
+    title: 'What is Follow-ups?',
+    text: 'Reply and follow-up generators keep the thread consistent with the original message, helping you maintain momentum without re-explaining context.',
+  },
+  {
+    title: 'What is Compliance?',
+    text: 'Drafts follow CAN-SPAM hygiene with a clear unsubscribe path and no deceptive subjects, plus a compliance QA step before you confirm.',
+  },
+  {
+    title: 'Who it is for',
+    text: 'Founders and freelancers who want reply-worthy cold emails without writing each variant themselves, especially small outbound teams.',
+  },
+]
+
+const glance = [
+  { label: 'What it does', value: 'AI-generated, research-backed cold emails for founders and freelancers reaching out on LinkedIn, X, or email.' },
+  { label: 'Who it is for', value: 'Founders and freelancers who want reply-worthy emails without writing every variant by hand.' },
+  { label: 'Input → Output', value: 'Recipient/company + context + tone + channel → a personalized cold message with subject-line variants.' },
+  { label: 'Pricing', value: 'Free $0 (1 run/day); Pro $19/mo (300 runs/mo); Enterprise custom (SSO, BYOK).' },
+]
+
+export default function Page() {
+  return (
+    <>
+      <Head>
+        <link rel="canonical" href="https://coldmail-ai.lxsaihub.com/blog" />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(buildFaqJsonLd(faqs)) }}
+        />
+        {howToBlocks.map((block, i) => (
+          <script
+            key={`howto-${i}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(buildHowToJsonLd(block.name, block.steps)),
+            }}
+          />
+        ))}
+
+        {posts.map((p, i) => (
+          <script
+            key={`article-${i}`}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'Article',
+                '@id': `${SITE}/blog`,
+                headline: p.title,
+                description: p.body,
+                inLanguage: 'en',
+                datePublished: p.datePublished,
+                dateModified: p.dateModified,
+                author: { '@type': 'Organization', name: NAME, url: SITE },
+                publisher: { '@type': 'Organization', name: NAME, url: SITE },
+                mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE}/blog` },
+              }),
+            }}
+          />
+        ))}
+
+        <title>{`${NAME} — Blog`}</title>
+        <meta name="description" content={`${NAME} — definitional and how-to posts on generating research-backed, personalized cold emails.`} />
+      </Head>
+      <div className="min-h-screen bg-slate-50 text-slate-800">
+        <header className="border-b border-slate-200 bg-white">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a href="/" className="font-bold text-slate-900">{NAME}</a>
+            <nav className="hidden md:flex gap-6 text-sm font-semibold text-slate-500">
+              <a href="/use-cases" className="hover:text-slate-900">Use cases</a>
+              <a href="/integrations" className="hover:text-slate-900">Integrations</a>
+              <a href="/how-it-works" className="hover:text-slate-900">How it works</a>
+              <a href="/security" className="hover:text-slate-900">Security</a>
+              <a href="/blog" className="hover:text-slate-900">Blog</a>
+            </nav>
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto px-6 py-14">
+          <h1 className="text-3xl font-bold text-slate-900">Blog</h1>
+          <p className="mt-3 text-slate-600">Definitional and how-to posts that help search engines and humans understand {NAME}.</p>
+
+          <section className="mt-8 rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-lg font-bold text-slate-900">What does {NAME} include at a glance?</h2>
+            <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {glance.map((g) => (
+                <div key={g.label}>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</dt>
+                  <dd className="mt-1 text-sm text-slate-700 leading-relaxed">{g.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="mt-10">
+            <h2 className="text-xl font-bold text-slate-900">Which topics does this blog cover?</h2>
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              {cards.map((c) => (
+                <article key={c.title} className="rounded-xl border border-slate-200 bg-white p-6">
+                  <h3 className="font-semibold text-slate-900">{c.title}</h3>
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{c.text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-12 space-y-8">
+            {posts.map((p) => (
+              <article key={p.slug} className="border-b border-slate-200 pb-8">
+                <div className="text-xs font-semibold text-indigo-600 mb-1">{p.type}</div>
+                <h2 className="text-2xl font-bold mb-2 text-slate-900">{p.title}</h2>
+                <p className="text-sm text-slate-600 mb-2"><span className="font-semibold">Target query:</span> {p.query}</p>
+                <p className="text-slate-700 leading-relaxed">{p.body}</p>
+              </article>
+            ))}
+          </section>
+        </main>
+        <footer className="border-t border-slate-200 bg-white">
+          <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-slate-500 flex flex-wrap gap-6">
+            <a href="/security" className="hover:text-slate-900">Security</a>
+            <a href="/use-cases" className="hover:text-slate-900">Use cases</a>
+            <a href="/integrations" className="hover:text-slate-900">Integrations</a>
+            <a href="/how-it-works" className="hover:text-slate-900">How it works</a>
+            <a href="/blog" className="hover:text-slate-900">Blog</a>
+          </div>
+        </footer>
+      </div>
+    </>
+  )
+}
